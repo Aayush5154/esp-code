@@ -13,7 +13,6 @@ const char* serverName = "https://farm-nine-self.vercel.app/api/data";
 
 DHT dht(DHTPIN, DHTTYPE);
 
-// GLOBAL SECURE CLIENT
 WiFiClientSecure client; 
 
 void setup() {
@@ -26,7 +25,7 @@ void setup() {
     delay(500);
     Serial.print(".");
   }
-  Serial.println("\n✅ WiFi Connected!");
+  Serial.println("\nWiFi Connected!");
 
   client.setInsecure(); 
 }
@@ -43,7 +42,7 @@ void loop() {
   int raw_soil = analogRead(SOIL_PIN);
 
   if (isnan(temp) || isnan(humidity)) {
-    Serial.println("❌ Sensor Error");
+    Serial.println("Sensor Error");
     delay(2000);
     return;
   }
@@ -53,7 +52,7 @@ void loop() {
 
   String jsonPayload = "{\"temp\":" + String(temp, 2) + ",\"humidity\":" + String(humidity, 2) + ",\"soil_moisture\":" + String(soil_moisture) + "}";
 
-  Serial.println("📡 Sending Data...");
+  Serial.println("Sending Data...");
 
   HTTPClient http;
   if (http.begin(client, serverName)) {
@@ -63,20 +62,18 @@ void loop() {
     int httpResponseCode = http.POST(jsonPayload);
 
     if (httpResponseCode > 0) {
-      // --- THE LOG BYPASS CATCHER ---
       String response = http.getString(); 
       
-      Serial.print("✅ Code: ");
+      Serial.print("Code: ");
       Serial.println(httpResponseCode);
       
       if (httpResponseCode == 201) {
-        Serial.println("💾 SAVED TO MONGODB!");
+        Serial.println("SAVED TO MONGODB!");
       } else {
-        Serial.println("🚨 SERVER ERROR DETAILS: " + response);
+        Serial.println("SERVER ERROR DETAILS: " + response);
       }
-      // ------------------------------
     } else {
-      Serial.print("❌ HTTP Error: ");
+      Serial.print("HTTP Error: ");
       Serial.println(http.errorToString(httpResponseCode).c_str());
     }
     http.end();
