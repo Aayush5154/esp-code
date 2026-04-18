@@ -1,0 +1,87 @@
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <DHT.h>
+#include <WiFiClientSecure.h>
+
+const char* ssid = "Aayush";
+const char* password = "hello123";
+const char* serverName = "https://farm-nine-self.vercel.app/api/data";
+
+#define DHTPIN 4
+#define DHTTYPE DHT11
+#define SOIL_PIN 34
+
+DHT dht(DHTPIN, DHTTYPE);
+
+// GLOBAL SECURE CLIENT
+WiFiClientSecure client; 
+
+void setup() {
+  Serial.begin(115200);
+  dht.begin();
+  
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting to WiFi");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\n✅ WiFi Connected!");
+
+  client.setInsecure(); 
+}
+
+void loop() {
+  if (WiFi.status() != WL_CONNECTED) {
+    WiFi.disconnect();
+    WiFi.begin(ssid, password);
+    while (WiFi.status() != WL_CONNECTED) { delay(500); }
+  }
+
+  float temp = dht.readTemperature();
+  float humidity = dht.readHumidity();
+  int raw_soil = analogRead(SOIL_PIN);
+
+  if (isnan(temp) || isnan(humidity)) {
+    Serial.println("❌ Sensor Error");
+    delay(2000);
+    return;
+  }
+
+  int soil_moisture = map(raw_soil, 4095, 0, 0, 100);
+  soil_moisture = constrain(soil_moisture, 0, 100);
+
+  String jsonPayload = "{\"temp\":" + String(temp, 2) + ",\"humidity\":" + String(humidity, 2) + ",\"soil_moisture\":" + String(soil_moisture) + "}";
+
+  Serial.println("📡 Sending Data...");
+
+  HTTPClient http;
+  if (http.begin(client, serverName)) {
+    http.addHeader("Content-Type", "application/json");
+    http.setTimeout(15000); 
+
+    int httpResponseCode = http.POST(jsonPayload);
+
+    if (httpResponseCode > 0) {
+      // --- THE LOG BYPASS CATCHER ---
+      String response = http.getString(); 
+      
+      Serial.print("✅ Code: ");
+      Serial.println(httpResponseCode);
+      
+      if (httpResponseCode == 201) {
+        Serial.println("💾 SAVED TO MONGODB!");
+      } else {
+        Serial.println("🚨 SERVER ERROR DETAILS: " + response);
+      }
+      // ------------------------------
+    } else {
+      Serial.print("❌ HTTP Error: ");
+      Serial.println(http.errorToString(httpResponseCode).c_str());
+    }
+    http.end();
+  }
+
+  Serial.println("--- Waiting 10s ---");
+  delay(10000);
+}
